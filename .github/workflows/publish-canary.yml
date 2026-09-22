@@ -1,10 +1,8 @@
+
 name: Publish canary release
 on:
-  push:
-    branches:
-      - "main"
-      - "releases/**"
-
+  workflow_dispatch:
+  # Automatic triggers removed; invoke through FounderOS/Admin Gate.
 jobs:
   tag-and-publish-to-npm:
     runs-on: ubuntu-latest

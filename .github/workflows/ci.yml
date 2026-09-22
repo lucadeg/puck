@@ -1,13 +1,11 @@
+
 # This workflow will run all checks required for a PR to be merged.
 
 name: Build and Test ci
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
+  workflow_dispatch:
+  # Automatic triggers removed; invoke through FounderOS/Admin Gate.
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

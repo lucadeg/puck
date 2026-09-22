@@ -1,8 +1,8 @@
+
 name: Publish release
 on:
-  push:
-    branches:
-      - "releases/**"
+  workflow_dispatch:
+  # Automatic triggers removed; invoke through FounderOS/Admin Gate.
 permissions:
   contents: write
 jobs:
