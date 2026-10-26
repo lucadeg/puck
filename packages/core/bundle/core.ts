@@ -8,12 +8,20 @@ export * from "../types/Fields";
 
 export * from "../components/ActionBar";
 export { AutoField, FieldLabel } from "../components/AutoField";
+export { FieldGroup, FieldGroupItem } from "../components/FieldGroup";
+export { Tab as FieldTab } from "../components/Tabs";
 
 export * from "../components/Button";
 export { Drawer } from "../components/Drawer";
 
-export { DropZone } from "../components/DropZone";
+export {
+  /**
+   * @deprecated Use {@link https://puckeditor.com/docs/api-reference/fields/slot Slots} instead.
+   */
+  DropZone,
+} from "../components/DropZone";
 export * from "../components/IconButton";
+export { InlineTextField } from "../components/InlineTextField";
 export { Puck } from "../components/Puck";
 export * from "../components/Render";
 export { RichTextMenu } from "../components/RichTextMenu/inner";

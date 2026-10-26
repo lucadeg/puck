@@ -5,12 +5,14 @@ import styles from "./styles.module.css";
 import { ReactNode, useMemo } from "react";
 import { Lock } from "lucide-react";
 import { useAppStore } from "../../store";
+import { useMessage } from "../../lib/use-message";
 
 const getClassName = getClassNameFactory("Input", styles);
 
 export const FieldLabel = ({
   children,
   icon,
+  endIcon,
   label,
   el = "label",
   readOnly,
@@ -18,12 +20,15 @@ export const FieldLabel = ({
 }: {
   children?: ReactNode;
   icon?: ReactNode;
+  endIcon?: ReactNode;
   label: string;
   el?: "label" | "div";
   readOnly?: boolean;
   className?: string;
 }) => {
   const El = el;
+  const readOnlyLabel = useMessage("field-readonly");
+
   return (
     <El className={className}>
       <div className={getClassName("label")}>
@@ -31,9 +36,15 @@ export const FieldLabel = ({
         {label}
 
         {readOnly && (
-          <div className={getClassName("disabledIcon")} title="Read-only">
+          <div className={getClassName("disabledIcon")} title={readOnlyLabel}>
             <Lock size="12" />
           </div>
+        )}
+
+        {endIcon ? (
+          <div className={getClassName("labelEndIcon")}>{endIcon}</div>
+        ) : (
+          <></>
         )}
       </div>
       {children}
@@ -44,6 +55,7 @@ export const FieldLabel = ({
 export type FieldLabelPropsInternal = {
   children?: ReactNode;
   icon?: ReactNode;
+  endIcon?: ReactNode;
   label?: string;
   el?: "label" | "div";
   readOnly?: boolean;
@@ -52,6 +64,7 @@ export type FieldLabelPropsInternal = {
 export const FieldLabelInternal = ({
   children,
   icon,
+  endIcon,
   label,
   el = "label",
   readOnly,
@@ -71,6 +84,7 @@ export const FieldLabelInternal = ({
     <Wrapper
       label={label}
       icon={icon}
+      endIcon={endIcon}
       className={getClassName({ readOnly })}
       readOnly={readOnly}
       el={el}

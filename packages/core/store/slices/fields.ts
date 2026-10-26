@@ -11,7 +11,7 @@ export type FieldsSlice = {
   fields: Fields | Partial<Fields>;
   loading: boolean;
   lastResolvedData: Partial<ComponentOrRootData>;
-  id: string | undefined;
+  id: string | undefined; // The item the fields belong to ("root" for root). Undefined until registered.
 };
 
 export const createFieldsSlice = (
@@ -30,17 +30,19 @@ export const useRegisterFieldsSlice = (
   appStore: ReturnType<typeof useAppStoreApi>,
   id?: string
 ) => {
+  const nodeId = id || "root";
+
   const resolveFields = useCallback(
     async (reset?: boolean) => {
       const { fields, lastResolvedData } = appStore.getState().fields;
       const metadata = appStore.getState().metadata;
       const nodes = appStore.getState().state.indexes.nodes;
-      const node = nodes[id || "root"];
+      const node = nodes[nodeId];
       const componentData = node?.data;
       const parentNode = node?.parentId ? nodes[node.parentId] : null;
       const parent = parentNode?.data || null;
 
-      const { getComponentConfig, state } = appStore.getState();
+      const { getComponentConfig, state, config } = appStore.getState();
 
       const componentConfig = getComponentConfig(componentData?.type);
 
@@ -52,7 +54,7 @@ export const useRegisterFieldsSlice = (
 
       if (reset) {
         appStore.setState((s) => ({
-          fields: { ...s.fields, fields: defaultFields, id },
+          fields: { ...s.fields, fields: defaultFields, id: nodeId },
         }));
 
         lastFields = defaultFields;
@@ -87,17 +89,25 @@ export const useRegisterFieldsSlice = (
           return;
         }
 
+        // Abort if the config has changed during resolution — the fields were
+        // resolved against the old config, and the run triggered by the config
+        // change owns the result. Without this, a slow resolver started just
+        // before a config swap can land last and override the new fields.
+        if (appStore.getState().config !== config) {
+          return;
+        }
+
         appStore.setState({
           fields: {
             fields: newFields,
             loading: false,
             lastResolvedData: componentData,
-            id,
+            id: nodeId,
           },
         });
       } else {
         appStore.setState((s) => ({
-          fields: { ...s.fields, fields: defaultFields, id },
+          fields: { ...s.fields, fields: defaultFields, id: nodeId },
         }));
       }
     },
@@ -107,9 +117,23 @@ export const useRegisterFieldsSlice = (
   useEffect(() => {
     resolveFields(true);
 
-    return appStore.subscribe(
-      (s) => s.state.indexes.nodes[id || "root"],
+    const unsubscribeData = appStore.subscribe(
+      (s) => s.state.indexes.nodes[nodeId],
       () => resolveFields()
     );
+
+    // The resolved fields are cached on this slice, so a config change (e.g.
+    // swapping to a config with translated labels) should re-resolve them
+    // otherwise the panel keeps serving the fields from the previous config
+    // until another component is selected or data happens to change.
+    const unsubscribeConfig = appStore.subscribe(
+      (s) => s.config,
+      () => resolveFields(true)
+    );
+
+    return () => {
+      unsubscribeData();
+      unsubscribeConfig();
+    };
   }, [id]);
 };

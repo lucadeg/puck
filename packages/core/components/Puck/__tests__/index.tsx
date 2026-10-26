@@ -1,5 +1,5 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
-import { Config } from "../../../types";
+import { Config, Plugin } from "../../../types";
 import "@testing-library/jest-dom";
 import {
   PUCK_STYLE_ID_ATTRIBUTE,
@@ -87,7 +87,7 @@ describe("Puck", () => {
   const componentBRender = jest.fn(() => null);
   const rootRender = jest.fn(() => null);
 
-  const config: Config = {
+  const config: Config<{}> = {
     root: {
       render: ({ children }) => {
         rootRender();
@@ -147,6 +147,58 @@ describe("Puck", () => {
     const { appStore } = getInternal();
 
     expect(appStore.getState()).toMatchSnapshot();
+  });
+
+  it("creates a new store every time it is mounted", async () => {
+    const { container } = render(
+      <>
+        <Puck config={config} data={{}} iframe={{ enabled: false }} />
+        <Puck config={config} data={{}} iframe={{ enabled: false }} />
+      </>
+    );
+
+    await flush();
+
+    const ids = Array.from(container.querySelectorAll("div.Puck"))
+      .map((el) => el.id)
+      .filter(Boolean);
+
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("applies min-content height to a plugin selected on mount", async () => {
+    const previousMatchMedia = window.matchMedia;
+
+    window.matchMedia = jest.fn((query: string) => ({
+      ...previousMatchMedia(query),
+      matches: true,
+    }));
+
+    const plugin: Plugin = {
+      name: "custom",
+      render: () => <div>Custom plugin</div>,
+      mobilePanelHeight: "min-content",
+    };
+
+    try {
+      render(
+        <Puck
+          config={config}
+          data={{}}
+          iframe={{ enabled: false }}
+          plugins={[plugin]}
+          ui={{ plugin: { current: "custom" } }}
+        />
+      );
+
+      await flush();
+
+      expect(screen.getByText("Custom plugin")).toBeInTheDocument();
+      expect(screen.queryByTitle("maximize")).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = previousMatchMedia;
+    }
   });
 
   it("should index slots on mount", async () => {
@@ -273,5 +325,59 @@ describe("Puck", () => {
     expect(interactionStyle?.getAttribute(PUCK_STYLE_SOURCE_ATTRIBUTE)).toBe(
       PUCK_STYLE_SOURCE_VALUE
     );
+  });
+
+  it("exposes the preview mode on the canvas entry element", async () => {
+    render(<Puck config={config} data={{}} iframe={{ enabled: false }} />);
+
+    await flush();
+
+    const entry = document.querySelector("[data-puck-entry]");
+
+    expect(entry?.getAttribute("data-puck-preview-mode")).toBe("edit");
+
+    const { appStore } = getInternal();
+
+    act(() => {
+      appStore
+        .getState()
+        .dispatch({ type: "setUi", ui: { previewMode: "interactive" } });
+    });
+
+    await flush();
+
+    expect(entry?.getAttribute("data-puck-preview-mode")).toBe("interactive");
+  });
+
+  it("marks the canvas entry as non-translatable so browser translation can't break drag-and-drop", async () => {
+    // Browser translators (e.g. Google Translate) wrap text nodes in <font>
+    // elements, which desyncs React's fiber tree and throws removeChild /
+    // insertBefore NotFoundErrors when a drag reconciles the DOM. translate="no"
+    // (inherited) plus the legacy notranslate class opt the canvas subtree out.
+    render(<Puck config={config} data={{}} iframe={{ enabled: false }} />);
+
+    await flush();
+
+    const entry = document.querySelector("[data-puck-entry]");
+
+    expect(entry?.getAttribute("translate")).toBe("no");
+    expect(entry?.classList.contains("notranslate")).toBe(true);
+  });
+
+  it("marks the editor chrome root as non-translatable so browser translation can't break chrome re-renders", async () => {
+    // The whole editor UI is React-controlled; a translator rewriting its DOM
+    // (wrapping text in <font>) desyncs React and crashes keyed-list re-renders
+    // like Breadcrumbs (insertBefore NotFoundError). translate="no" is inherited,
+    // so marking the root opts the entire chrome out in one place. See PUCK-569.
+    const { container } = render(
+      <Puck config={config} data={{}} iframe={{ enabled: false }} />
+    );
+
+    await flush();
+
+    const root = container.querySelector("div.Puck");
+
+    expect(root?.getAttribute("translate")).toBe("no");
+    expect(root?.classList.contains("notranslate")).toBe(true);
   });
 });

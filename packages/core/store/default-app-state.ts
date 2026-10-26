@@ -10,6 +10,7 @@ export const defaultAppState: PrivateAppState = {
     itemSelector: null,
     componentList: {},
     isDragging: false,
+    itemExpanded: {},
     previewMode: "edit",
     viewports: {
       current: {
@@ -19,6 +20,7 @@ export const defaultAppState: PrivateAppState = {
       options: [],
       controlsVisible: true,
     },
+    expandedFieldGroups: {},
     field: { focus: null },
     plugin: { current: null },
   },

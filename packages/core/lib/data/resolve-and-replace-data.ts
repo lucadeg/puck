@@ -1,18 +1,45 @@
 import { useAppStoreApi } from "../../store";
-import { ComponentData, ResolveDataTrigger } from "../../types";
-import { getSelectorForId } from "../get-selector-for-id";
-import { toComponent } from "./to-component";
+import { ComponentData, ResolveDataTrigger, UiState } from "../../types";
 
+import { getSelectorForId } from "../get-selector-for-id";
+
+import { toComponent } from "./to-component";
+import { toRoot } from "./to-root";
+
+/**
+ * Resolves the data of a component and replaces it in the appStore state.
+ * @param currentData - The current data of the component to resolve.
+ * @param getState - The function to get the current state of the appStore.
+ * @param trigger - The trigger for resolving the data. Defaults to "force".
+ * @param writeThrough - Whether to write through the resolved data even if it hasn't changed. Defaults to false.
+ * @param ui - Optional UI state to set after replacing the component.
+ * @returns A promise that resolves when the data has been replaced.
+ */
 export async function resolveAndReplaceData(
   currentData: ComponentData,
   getState: ReturnType<typeof useAppStoreApi>["getState"],
-  trigger: ResolveDataTrigger = "force"
+  trigger: ResolveDataTrigger = "force",
+  writeThrough: boolean = false,
+  ui?: Partial<UiState>
 ) {
   const resolvedResult = await getState().resolveComponentData(
     currentData,
     trigger
   );
-  if (!resolvedResult.didChange) return;
+  if (!resolvedResult.didChange && !writeThrough) return;
+
+  const isRoot =
+    resolvedResult.node.type === "root" ||
+    resolvedResult.node.props.id === "root";
+
+  if (isRoot) {
+    getState().dispatch({
+      type: "replaceRoot",
+      root: toRoot(resolvedResult.node),
+      ui,
+    });
+    return;
+  }
 
   const itemSelector = getSelectorForId(
     getState().state,
@@ -30,5 +57,6 @@ export async function resolveAndReplaceData(
     data: toComponent(resolvedResult.node),
     destinationIndex: itemSelector.index,
     destinationZone: itemSelector.zone,
+    ui,
   });
 }

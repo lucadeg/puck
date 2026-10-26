@@ -5,12 +5,13 @@ on:
   # Automatic triggers removed; invoke through FounderOS/Admin Gate.
 permissions:
   contents: write
+  id-token: write
 jobs:
   tag-and-publish-to-npm:
     runs-on: ubuntu-latest
     if: "startsWith(github.event.head_commit.message, 'release: ')"
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7.0.1
       - name: Extract version
         shell: bash
         run: echo "TAG_NAME=$(git log -1 --oneline --pretty=%B | sed 's/release:\ //g')" >> $GITHUB_ENV
@@ -20,19 +21,21 @@ jobs:
           repo-token: "${{ secrets.GH_TOKEN }}"
           tag: ${{ env.TAG_NAME }}
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
+          cache: "pnpm"
           registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
-        run: yarn
+        run: pnpm install
 
       - name: Publish all packages
         run: ./scripts/publish.sh latest
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # Trigger a new build to ensure Vercel creates a distinct release branch, rather than reusing latest
       - name: Triggering new build

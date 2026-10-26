@@ -51,6 +51,11 @@ export interface RadioField extends BaseField {
   options: FieldOptions;
 }
 
+export interface CheckboxField extends BaseField {
+  type: "checkbox";
+  options: FieldOptions;
+}
+
 export interface RichtextField<
   UserSelector extends RichTextSelector = RichTextSelector
 > extends BaseField {
@@ -97,6 +102,7 @@ export interface ObjectField<
   UserField extends {} = {}
 > extends BaseField {
   type: "object";
+  expandable?: boolean;
   objectFields: {
     [SubPropName in keyof Props]: UserField extends { type: PropertyKey }
       ? Field<Props[SubPropName]> | UserField
@@ -180,6 +186,7 @@ export type Field<ValueType = any, UserField extends {} = {}> =
   | TextareaField
   | SelectField
   | RadioField
+  | CheckboxField
   | ArrayField<
       ValueType extends { [key: string]: any }[] ? ValueType : never,
       UserField

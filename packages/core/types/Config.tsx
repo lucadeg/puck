@@ -1,20 +1,24 @@
-import type { JSX, ReactNode } from "react";
-import { BaseField, Field, Fields } from "./Fields";
-import { ComponentData, ComponentMetadata, RootData } from "./Data";
+import type { JSX, ReactNode, ElementType } from "react";
 
+import { SlotProps } from "../components/DropZone/types";
+
+import { ComponentData, ComponentMetadata, RootData } from "./Data";
+import { BaseField, Field, Fields } from "./Fields";
 import { AsFieldProps, WithChildren, WithId, WithPuckProps } from "./Utils";
 import { AppState } from "./AppState";
-import { DefaultComponentProps, DefaultRootFieldProps } from "./Props";
+import { DefaultComponentProps, WithDefaultRootFieldProps } from "./Props";
 import { Permissions } from "./API";
-import { DropZoneProps } from "../components/DropZone/types";
 import {
   AssertHasValue,
   FieldsExtension,
   LeftOrExactRight,
+  RenderFunc,
   WithDeepSlots,
 } from "./Internal";
 
-export type SlotComponent = (props?: Omit<DropZoneProps, "zone">) => ReactNode;
+export type SlotComponent = <ComponentType extends ElementType = "div">(
+  props?: SlotProps<ComponentType>
+) => ReactNode;
 
 export type PuckComponent<Props> = (
   props: WithId<
@@ -50,6 +54,9 @@ type ComponentConfigInternal<
   label?: string;
   defaultProps?: FieldProps;
   fields?: Fields<FieldProps, UserField>;
+  renderFields?: RenderFunc<{
+    fields: Partial<Record<keyof FieldProps, ReactNode>>;
+  }>;
   permissions?: Partial<Permissions>;
   inline?: boolean;
   resolveFields?: (
@@ -72,6 +79,7 @@ type ComponentConfigInternal<
       metadata: ComponentMetadata;
       trigger: ResolveDataTrigger;
       parent: ComponentData | null;
+      root: RootData;
     }
   ) =>
     | Promise<WithPartialProps<DataShape, FieldProps>>
@@ -232,7 +240,7 @@ export type ExtractConfigParams<UserConfig extends ConfigInternal> =
   >
     ? {
         props: PropsOrParams;
-        rootProps: RootProps & DefaultRootFieldProps;
+        rootProps: WithDefaultRootFieldProps<RootProps>;
         categoryNames: CategoryName;
         field: UserField extends { type: string } ? UserField : Field;
       }

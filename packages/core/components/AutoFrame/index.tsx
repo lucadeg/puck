@@ -319,7 +319,13 @@ const CopyHostStyles = ({
           }
         };
         mirror.onerror = () => {
-          console.warn(`AutoFrame couldn't load a stylesheet`);
+          const href =
+            mirror instanceof HTMLLinkElement ? mirror.href : undefined;
+          console.warn(
+            `AutoFrame couldn't load a stylesheet${href ? `: ${href}` : ""}. ` +
+              `This can happen if the parent document's stylesheet is blocked by the iframe's CSP, ` +
+              `returns a non-2xx status, or fails to reach the network.`
+          );
           stylesLoaded = stylesLoaded + 1;
 
           if (stylesLoaded >= filtered.length) {
@@ -436,7 +442,9 @@ function AutoFrame({
       {...props}
       className={className}
       id={id}
-      srcDoc='<!DOCTYPE html><html><head></head><body><div id="frame-root" data-puck-entry></div></body></html>'
+      // Opt out the iframe out of automatic translations.
+      // Browser translators modify the dom and are incompatible with dnd-kit
+      srcDoc='<!DOCTYPE html><html><head></head><body><div id="frame-root" data-puck-entry translate="no" class="notranslate"></div></body></html>'
       ref={frameRef}
       onLoad={() => {
         setLoaded(true);

@@ -1,24 +1,30 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
+
 import { registerOverlayPortal } from "../../lib/overlay-portal";
 import { useAppStoreApi } from "../../store";
-import styles from "./styles.module.css";
-import { getClassNameFactory } from "../../lib";
-import { setDeep } from "../../lib/data/set-deep";
+
+import getClassNameFactory from "../../lib/get-class-name-factory";
+import { resolveAndReplaceData } from "../../lib/data/resolve-and-replace-data";
 import { getSelectorForId } from "../../lib/get-selector-for-id";
+import { setDeep } from "../../lib/data/set-deep";
+
+import styles from "./styles.module.css";
 
 const getClassName = getClassNameFactory("InlineTextField", styles);
 
 const InlineTextFieldInternal = ({
+  placeholder,
   propPath,
   componentId,
   value,
   isReadOnly,
   opts = {},
 }: {
+  placeholder?: string;
   propPath: string;
-  value: string;
+  value: string | null | undefined;
   componentId: string;
   isReadOnly: boolean;
   opts?: { disableLineBreaks?: boolean };
@@ -39,8 +45,15 @@ const InlineTextFieldInternal = ({
     }
 
     if (ref.current) {
-      if (value !== ref.current.innerText) {
-        ref.current.replaceChildren(value);
+      // Coerce nullish values to "" — Node.replaceChildren stringifies non-Node
+      // args, so passing null/undefined renders the literal text "null"/"undefined".
+      const safeValue = value ?? "";
+
+      // Replace when the user has edited the value or when the value is empty to
+      // remove any elements inserted by the browser that would break placeholder
+      // styling (e.g. <br>).
+      if (!safeValue || safeValue !== ref.current.innerText) {
+        ref.current.replaceChildren(safeValue);
       }
 
       const cleanupPortal = registerOverlayPortal(ref.current);
@@ -48,12 +61,6 @@ const InlineTextFieldInternal = ({
       const handleInput = async (e: any) => {
         const appStore = appStoreApi.getState();
         const node = appStore.state.indexes.nodes[componentId];
-
-        const zoneCompound = `${node.parentId}:${node.zone}`;
-        const index =
-          appStore.state.indexes.zones[zoneCompound]?.contentIds.indexOf(
-            componentId
-          );
 
         let value = e.target.innerText;
 
@@ -63,17 +70,12 @@ const InlineTextFieldInternal = ({
 
         const newProps = setDeep(node.data.props, propPath, value);
 
-        const resolvedData = await appStore.resolveComponentData(
+        await resolveAndReplaceData(
           { ...node.data, props: newProps },
-          "replace"
+          appStoreApi.getState,
+          "replace",
+          true
         );
-
-        appStore.dispatch({
-          type: "replace",
-          data: resolvedData.node,
-          destinationIndex: index,
-          destinationZone: zoneCompound,
-        });
       };
 
       ref.current.addEventListener("input", handleInput);
@@ -95,6 +97,7 @@ const InlineTextFieldInternal = ({
   return (
     <span
       className={getClassName()}
+      data-placeholder={placeholder}
       ref={ref}
       contentEditable={isHovering || isFocused ? "plaintext-only" : "false"}
       onClick={(e) => {

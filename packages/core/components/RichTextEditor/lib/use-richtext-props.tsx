@@ -1,12 +1,19 @@
 import { lazy, Suspense, useMemo } from "react";
 import {
   BaseField,
+  Field,
+  FieldTransforms,
   Fields,
   RichtextField,
-  WithPuckProps,
 } from "../../../types";
 import { RichTextRenderFallback } from "../components/RenderFallback";
 import { mapDeep } from "./mapDeep";
+
+const RichTextRender = lazy(() =>
+  import("../components/Render").then((m) => ({
+    default: m.RichTextRender,
+  }))
+);
 
 type RichtextPath = {
   path: string[];
@@ -18,9 +25,10 @@ export function useRichtextProps(
     | Fields<any, {}>
     | Fields<any, { type: string } & BaseField>
     | undefined,
-  props: WithPuckProps<{
+  props: {
     [x: string]: any;
-  }>
+  },
+  fieldTransforms?: FieldTransforms
 ) {
   const findAllRichtextKeys = (
     fields:
@@ -34,6 +42,14 @@ export function useRichtextProps(
     const result: RichtextPath[] = [];
 
     for (const [key, field] of Object.entries(fields)) {
+      // A user transform for this field type replaces the whole value.
+      // So we don't need to look for richtext fields inside it.
+      // Users might be transforming richtext fields into something else, or
+      // it might be a completely different structure (ReactNode, string, number, etc.) and we can't recurse on it.
+      if (fieldTransforms?.[field.type as Field["type"]]) {
+        continue;
+      }
+
       const currentPath = [...path, key];
 
       if (field.type === "richtext") {
@@ -55,16 +71,13 @@ export function useRichtextProps(
     return result;
   };
 
-  const richtextKeys = useMemo(() => findAllRichtextKeys(fields), [fields]);
+  const richtextKeys = useMemo(
+    () => findAllRichtextKeys(fields),
+    [fields, fieldTransforms]
+  );
 
   const richtextProps = useMemo(() => {
     if (!richtextKeys?.length) return {};
-
-    const RichTextRender = lazy(() =>
-      import("../components/Render").then((m) => ({
-        default: m.RichTextRender,
-      }))
-    );
 
     let result = { ...props };
 

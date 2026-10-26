@@ -1,14 +1,8 @@
-import { Callout } from "nextra/components";
-
 # Field Transforms
 
-Puck lets you modify props before rendering in the editor via the [`FieldTransforms` API](/docs/api-reference/field-transforms).
+Puck lets you modify props before rendering via the [`FieldTransforms` API](/docs/api-reference/field-transforms).
 
 Use this API to implement custom rendering behavior for specific field types, which can be used to implement features such as inline text editing.
-
-<Callout type="info">
-  Field transforms only apply to components rendered in `<Puck>` and will not be applied to `<Render>`.
-</Callout>
 
 ## Implementing a transform
 
@@ -16,11 +10,27 @@ Specify a transforms object for the fields you want to modify before rendering:
 
 ```tsx
 const fieldTransforms = {
-  text: ({ value }) => <div>Value: {value}</div>, // Wrap all text field props in divs
+  text: ({ value }) => value.toUpperCase(), // Transform text fields to uppercase
 };
 
 const Example = () => <Puck fieldTransforms={fieldTransforms} />;
 ```
+
+## Transforming at render time
+
+Pass transforms to [`<Render>`](/docs/api-reference/components/render) to apply them to a finished page.
+
+```tsx
+const fieldTransforms = {
+  text: ({ value }) => <div style={{ color: "blue" }}>{value}</div>, // Make all text fields blue
+};
+
+const Example = () => <Render fieldTransforms={fieldTransforms} />;
+```
+
+Transforms can return components, which makes them a good fit for unserializable values that should not be baked into your [`Data`](/docs/api-reference/data-model/data) payload.
+
+[`isReadOnly`](/docs/api-reference/field-transforms#isreadonly) is always `true` under `<Render>`. Use it to skip any editing behavior in transforms that you share with `<Puck>`.
 
 ## Making it interactive
 
@@ -48,11 +58,13 @@ const EditableText = ({ value }) => {
 };
 
 const fieldTransforms = {
-  text: EditableText,
+  text: (props) => <EditableText {...props} />,
 };
 
 const Example = () => <Puck fieldTransforms={fieldTransforms} />;
 ```
+
+Because Puck calls transforms as functions, render components that use hooks from the transform instead of passing them directly.
 
 ## Define new fields
 
